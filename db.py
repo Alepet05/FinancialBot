@@ -5,6 +5,27 @@ import sqlite3 as sq
 connection = sq.connect('db.db')
 cursor = connection.cursor()
 
+def add_new_user(user_id: int):
+    """Добавляет нового пользователя в БД
+
+    Args:
+        user_id (int): telegram-id пользователя
+    """
+    cursor.execute("""INSERT INTO users (user_id) VALUES (?)""", (user_id, ))
+    connection.commit()
+
+def check_user_exists(user_id):
+    """Проверяет, существует ли пользователь с переданным id в БД
+
+    Args:
+        user_id (int): telegram-id пользователя
+
+    Returns:
+        [tuple, None]: Объект cursor, если пользователь был найден, иначе - None
+    """
+    user = cursor.execute('SELECT * FROM users WHERE user_id=?', (user_id, ))
+    return user.fetchone()
+
 def init_db():
     """Инициализирует БД"""
     create_users_table()
@@ -14,6 +35,7 @@ def init_db():
 
 def create_users_table():
     """Создает таблицу пользователей, если она отсутствует"""
+    cursor.execute("""DROP TABLE IF EXISTS users""")
     cursor.execute("""CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER UNIQUE,
@@ -22,6 +44,7 @@ def create_users_table():
 
 def create_expenses_table():
     """Создает таблицу расходов, если она отсутствует"""
+    cursor.execute("""DROP TABLE IF EXISTS expenses""")
     cursor.execute("""CREATE TABLE IF NOT EXISTS expenses (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
@@ -34,6 +57,7 @@ def create_expenses_table():
 
 def create_categories_table():
     """Создает таблицу категорий расходов, если она отсутствует"""
+    cursor.execute("""DROP TABLE IF EXISTS categories""")
     cursor.execute("""CREATE TABLE IF NOT EXISTS categories (
         category TEXT UNIQUE,
         is_base_category BOOLEAN 
@@ -43,6 +67,7 @@ def create_categories_table():
 
 def create_budget_table():
     """Создает таблицу бюджета, если она отсутствует"""
+    cursor.execute("""DROP TABLE IF EXISTS budget""")
     cursor.execute("""CREATE TABLE IF NOT EXISTS budget (
         name TEXT,
         day_limit INTEGER DEFAULT 500,
