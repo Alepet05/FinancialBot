@@ -26,6 +26,28 @@ def check_user_exists(user_id):
     user = cursor.execute('SELECT * FROM users WHERE user_id=?', (user_id, ))
     return user.fetchone()
 
+def add_expense(user_id: int, price: int, category: str):
+    """Добавляет расход в БД
+
+    Args:
+        user_id (int): telegram-id пользователя
+        price (int): стоимость расхода
+        category (str): категория расхода
+    """
+    cursor.execute("""INSERT INTO expenses (user_id, price, category) VALUES (?, ?, ?)""", 
+        (user_id, price, category))
+    connection.commit()
+
+def get_categories():
+    """Возвращает список категорий из бд
+
+    Returns:
+        list: список категорий
+    """
+    cursor.execute("""SELECT category FROM categories""")
+    categories_names = cursor.fetchall()
+    return [category[0] for category in categories_names] # преобразуем список кортежей в список названий категорий
+
 def init_db():
     """Инициализирует БД"""
     create_users_table()
@@ -48,7 +70,7 @@ def create_expenses_table():
     cursor.execute("""CREATE TABLE IF NOT EXISTS expenses (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
-        expense INTEGER,
+        price INTEGER,
         category TEXT,
         date DATE DEFAULT (DATE('now', 'localtime')),
         FOREIGN KEY (category) REFERENCES categories(category),
