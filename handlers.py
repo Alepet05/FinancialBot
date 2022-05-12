@@ -33,6 +33,20 @@ async def add_expense(message: types.Message):
 
     await message.answer(f"Внесен расход {price} руб. на {category}")
 
+@dp.message_handler(commands=['expenses'])
+async def get_last_expenses(message: types.Message):
+    """Выводит последние N расходов (N вводится пользователем)"""
+    user_id = message.from_user.id
+    expenses_count = int(message.text.split()[-1]) # формат команды /expenses {кол-во расходов}
+
+    answer_text = ''
+    last_expenses = db.get_last_expenses(user_id, expenses_count)
+
+    for expense in last_expenses:
+        answer_text += f"* {expense[1]} руб. на {expense[0]}\n"
+
+    await message.answer(answer_text)
+
 @dp.message_handler(commands=['today'])
 async def get_today_statistic(message: types.Message):
     """Выводит информацию о тратах пользователя за сегодня"""

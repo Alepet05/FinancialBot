@@ -39,6 +39,18 @@ def add_expense(user_id: int, price: int, category: str):
         (user_id, price, category))
     connection.commit()
 
+def get_last_expenses(user_id: int, expenses_count: int):
+    """_summary_
+
+    Args:
+        user_id (int): _description_
+        expenses_count (int): _description_
+    """
+    cursor.execute("""SELECT category, price FROM expenses
+                    JOIN users ON expenses.user_id = users.user_id
+                    WHERE expenses.user_id=? LIMIT ?""", (user_id, expenses_count))
+    return cursor.fetchall()
+
 def get_categories():
     """Возвращает список категорий из бд
 
