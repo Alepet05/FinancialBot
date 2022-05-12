@@ -1,3 +1,4 @@
+from datetime import datetime
 import sqlite3 as sq
 
 
@@ -48,6 +49,46 @@ def get_categories():
     categories_names = cursor.fetchall()
     return [category[0] for category in categories_names] # преобразуем список кортежей в список названий категорий
 
+def get_today_expenses(user_id: int, date: str):
+    """Возвращает сумму расходов пользователя за сегодня
+
+    Args:
+        user_id (int):telegram-id пользователя
+        date (str): текущая дата пользователя
+
+    Returns:
+        [str, None]: сумма расходов пользователя за сегодня. Если таковой нет - None
+    """
+    cursor.execute("""SELECT sum(price) as sum FROM expenses 
+                    JOIN users ON expenses.user_id = users.user_id
+                    WHERE expenses.user_id=? AND date=?""", (user_id, date))
+    return cursor.fetchone()[0]
+
+def get_today_base_expanses(user_id: int, date: str):
+    """Возвращает сумму базовых расходов пользователя за сегодня
+
+    Args:
+        user_id (int):telegram-id пользователя
+        date (str): текущая дата пользователя
+
+    Returns:
+        [str, None]: сумма базовых расходов пользователя за сегодня. Если таковой нет - None
+    """
+    cursor.execute("""SELECT sum(price) as sum FROM expenses 
+                    JOIN categories ON expenses.category = categories.category
+                    JOIN users ON expenses.user_id = users.user_id
+                    WHERE expenses.user_id=? AND date=? AND is_base_category=True""", (user_id, date))
+    return cursor.fetchone()[0]
+
+def get_day_limit():
+    """Возвращает лимит расходов на день
+
+    Returns:
+        str: лимит расходов на день
+    """
+    cursor.execute("""SELECT day_limit FROM budget WHERE name='base'""")
+    return cursor.fetchone()[0]
+
 def init_db():
     """Инициализирует БД"""
     create_users_table()
@@ -95,6 +136,7 @@ def create_budget_table():
         day_limit INTEGER DEFAULT 500,
         month_limit INTEGER DEFAULT 10000
     )""")
+    fill_budget_table(name='base', day_limit=500, month_limit=10000)
 
 def fill_categories_table():
     """Заполняет таблицу категориями расходов"""
@@ -109,6 +151,18 @@ def fill_categories_table():
         ('прочее', False),
     ]
     cursor.executemany("INSERT INTO categories(category, is_base_category) VALUES(?, ?)", categories)
+    connection.commit()
+    
+def fill_budget_table(name: str, day_limit: int, month_limit: int):
+    """Заполняет таблицу бюджета
+
+    Args:
+        name (str): название бюджета (базовый или нет)
+        day_limit (int): лимит расходов на день
+        month_limit (int): лимит расходов на месяц
+    """
+    cursor.execute("INSERT INTO budget(name, day_limit, month_limit) VALUES(?, ?, ?)",
+        (name, day_limit, month_limit))
     connection.commit()
 
 def change_budget(day_limit=500, month_limit=10000):

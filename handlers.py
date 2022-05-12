@@ -2,10 +2,11 @@ from loader import dp, bot
 from aiogram import types
 import db
 import re
+import datetime
 
 
 @dp.message_handler(commands=['start'])
-async def greeting(message: types.Message):
+async def welcome(message: types.Message):
     """Приветствует пользователя и заносит его в БД"""
     user_id = message.from_user.id
     if not db.check_user_exists(user_id):
@@ -31,3 +32,19 @@ async def add_expense(message: types.Message):
     db.add_expense(user_id, int(price), category)
 
     await message.answer(f"Внесен расход {price} руб. на {category}")
+
+@dp.message_handler(commands=['today'])
+async def get_today_statistic(message: types.Message):
+    """Выводит информацию о тратах пользователя за сегодня"""
+    user_id = message.from_user.id
+    date = datetime.datetime.now().strftime('%Y-%m-%d')
+
+    today_expenses = db.get_today_expenses(user_id, date)
+    today_base_expenses = db.get_today_base_expanses(user_id, date)
+    day_limit = int(db.get_day_limit())
+
+    answer_text = 'Расходы сегодня:\n\n'
+    answer_text += f'Всего: {today_expenses} руб.\n'
+    answer_text += f'Базовые: {today_base_expenses} руб. из {day_limit} руб.'
+
+    await message.answer(answer_text)
