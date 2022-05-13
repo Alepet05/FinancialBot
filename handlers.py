@@ -55,10 +55,34 @@ async def get_today_statistic(message: types.Message):
 
     today_expenses = db.get_today_expenses(user_id, date)
     today_base_expenses = db.get_today_base_expanses(user_id, date)
-    day_limit = int(db.get_day_limit())
+    day_limit = db.get_day_limit()
 
     answer_text = 'Расходы сегодня:\n\n'
     answer_text += f'Всего: {today_expenses} руб.\n'
     answer_text += f'Базовые: {today_base_expenses} руб. из {day_limit} руб.'
+
+    await message.answer(answer_text)
+
+@dp.message_handler(commands=['month'])
+async def get_month_statistic(message: types.Message):
+    """Выводит информацию о тратах пользователя за текущий месяц"""
+    user_id = message.from_user.id
+
+    # определяем начало текущего и следующего месяца 
+    date = datetime.datetime.now().strftime('%Y-%m-%d').split('-')
+    date[1] = f"0{int(date[1][-1])+1}"
+    current_month = f'{date[0]}-{date[1]}-01'
+    if int(date[1])+1 <= 12:
+        next_month = f'{date[0]}-0{int(date[1])+1}-01'
+    else:
+        next_month = f'{int(date[0])+1}-01-01'
+
+    month_expenses = db.get_month_expenses(user_id, current_month, next_month)
+    month_base_expenses = db.get_month_base_expenses(user_id, current_month, next_month)
+    month_limit = db.get_month_limit()
+
+    answer_text = 'Расходы за текущий месяц:\n\n'
+    answer_text += f'Всего: {month_expenses} руб.\n'
+    answer_text += f'Базовые: {month_base_expenses} руб. из {month_limit} руб.'
 
     await message.answer(answer_text)
