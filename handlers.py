@@ -11,7 +11,13 @@ async def welcome(message: types.Message):
     user_id = message.from_user.id
     if not db.check_user_exists(user_id):
         db.add_new_user(user_id)
-    await message.answer('Добро пожаловать')
+    await message.answer(
+        "Бот для учёта финансов\n\n"
+        "Добавить расход: /add 100 продукты\n"
+        "Расходы за сегодня: /today\n"
+        "Расходы за текущий месяц: /month\n"
+        "N последних внесенных расходов: /expenses 10\n"
+        "Категории трат: /categories")
 
 @dp.message_handler(commands=['add'])
 async def add_expense(message: types.Message):
@@ -43,7 +49,7 @@ async def get_last_expenses(message: types.Message):
     last_expenses = db.get_last_expenses(user_id, expenses_count)
 
     for expense in last_expenses:
-        answer_text += f"* {expense[1]} руб. на {expense[0]}\n"
+        answer_text += f"* {expense[1]} руб. на {expense[0]} {expense[2]}\n"
 
     await message.answer(answer_text)
 
@@ -57,11 +63,11 @@ async def get_today_statistic(message: types.Message):
     today_base_expenses = db.get_today_base_expanses(user_id, date)
     day_limit = db.get_day_limit()
 
-    answer_text = 'Расходы сегодня:\n\n'
-    answer_text += f'Всего: {today_expenses} руб.\n'
-    answer_text += f'Базовые: {today_base_expenses} руб. из {day_limit} руб.'
-
-    await message.answer(answer_text)
+    await message.answer(
+        'Расходы сегодня:\n\n'
+        f'Всего: {today_expenses} руб.\n'
+        f'Базовые: {today_base_expenses} руб. из {day_limit} руб.'
+    )
 
 @dp.message_handler(commands=['month'])
 async def get_month_statistic(message: types.Message):
@@ -81,8 +87,18 @@ async def get_month_statistic(message: types.Message):
     month_base_expenses = db.get_month_base_expenses(user_id, current_month, next_month)
     month_limit = db.get_month_limit()
 
-    answer_text = 'Расходы за текущий месяц:\n\n'
-    answer_text += f'Всего: {month_expenses} руб.\n'
-    answer_text += f'Базовые: {month_base_expenses} руб. из {month_limit} руб.'
+    await message.answer(
+        'Расходы за текущий месяц:\n\n'
+        f'Всего: {month_expenses} руб.\n'
+        f'Базовые: {month_base_expenses} руб. из {month_limit} руб.'
+    )
+
+@dp.message_handler(commands=['categories'])
+async def get_categories(message: types.Message):
+    categories = db.get_categories()
+    answer_text = ''
+
+    for category in categories:
+        answer_text += f"* {category}\n"
 
     await message.answer(answer_text)

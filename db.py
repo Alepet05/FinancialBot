@@ -49,7 +49,7 @@ def get_last_expenses(user_id: int, expenses_count: int):
     Returns:
         list: список последних расходов
     """
-    cursor.execute("""SELECT category, price FROM expenses
+    cursor.execute("""SELECT category, price, date FROM expenses
                     JOIN users ON expenses.user_id = users.user_id
                     WHERE expenses.user_id=? LIMIT ?""", (user_id, expenses_count))
     last_expenses = cursor.fetchall()
@@ -236,4 +236,4 @@ def change_budget(day_limit=500, month_limit=10000):
     cursor.execute("""UPDATE budget SET day_limit=?, month_limit=?""", (day_limit, month_limit))
     connection.commit()
 
-init_db()
+#init_db()
