@@ -43,14 +43,18 @@ async def add_expense(message: types.Message):
 async def get_last_expenses(message: types.Message):
     """Выводит последние N расходов (N вводится пользователем)"""
     user_id = message.from_user.id
-    expenses_count = int(message.text.split()[-1]) # формат команды /expenses {кол-во расходов}
+    command = message.text.split()
+    expenses_count = int(command[-1]) if len(command) == 2 else 5 # формат команды /expenses {кол-во расходов}. По умолчанию выводится 5 последних расходов
 
     answer_text = ''
     last_expenses = db.get_last_expenses(user_id, expenses_count)
 
-    for expense in last_expenses:
-        answer_text += f"* {expense[1]} руб. на {expense[0]} {expense[2]}\n"
-
+    if type(last_expenses) is list:
+        for expense in last_expenses:
+            answer_text += f"* {expense[1]} руб. на {expense[0]} {expense[2]}\n"
+    else:
+        answer_text = last_expenses
+        
     await message.answer(answer_text)
 
 @dp.message_handler(commands=['today'])
