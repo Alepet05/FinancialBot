@@ -73,13 +73,13 @@ def get_today_expenses(user_id: int, date: str):
         date (str): текущая дата пользователя
 
     Returns:
-        str: сумма расходов пользователя за сегодня. Если таковой нет - сообщение об отсутствии расходов
+        int: сумма расходов пользователя за сегодня
     """
     cursor.execute("""SELECT sum(price) as sum FROM expenses 
                     JOIN users ON expenses.user_id = users.user_id
                     WHERE expenses.user_id=? AND date=?""", (user_id, date))
     today_expenses = cursor.fetchone()[0]
-    return today_expenses if today_expenses else 'За сегодня еще нет расходов'
+    return int(today_expenses) if today_expenses else 0
 
 def get_today_base_expanses(user_id: int, date: str):
     """Возвращает сумму базовых расходов пользователя за сегодня
@@ -89,14 +89,14 @@ def get_today_base_expanses(user_id: int, date: str):
         date (str): текущая дата пользователя
 
     Returns:
-        [str, None]: сумма базовых расходов пользователя за сегодня. Если таковой нет - сообщение об отсутствии расходов
+        int: сумма базовых расходов пользователя за сегодня
     """
     cursor.execute("""SELECT sum(price) as sum FROM expenses 
                     JOIN categories ON expenses.category = categories.category
                     JOIN users ON expenses.user_id = users.user_id
                     WHERE expenses.user_id=? AND date=? AND is_base_category=True""", (user_id, date))
     today_base_expanses = cursor.fetchone()[0]
-    return today_base_expanses if today_base_expanses else 'За сегодня еще нет базовых расходов'
+    return int(today_base_expanses) if today_base_expanses else 0
 
 def get_day_limit():
     """Возвращает лимит расходов на день
@@ -107,44 +107,92 @@ def get_day_limit():
     cursor.execute("""SELECT day_limit FROM budget WHERE name='base'""")
     return cursor.fetchone()[0]
 
-def get_month_expenses(user_id: int, current_month: str, next_month: str):
-    """Возвращает сумму расходов пользователя за текущий месяц
+def get_week_expenses(user_id: int, start_week: str, current_date: str):
+    """Возвращает сумму расходов пользователя за текущую неделю
 
     Args:
         user_id (int): telegram-id пользователя
-        current_month (str): текущий месяц
-        next_month (str): следующий месяц
+        start_week (str): начало текущей недели
+        current_date (str): текущая дата
 
     Returns:
-        str: сумма расходов пользователя за месяц. Если таковой нет - сообщение 
+        int: сумма расходов пользователя за неделю
     """
     cursor.execute(f"""SELECT sum(price) as sum FROM expenses 
                     JOIN users ON expenses.user_id = users.user_id
-                    WHERE date >= '{current_month}' AND date < '{next_month}'
+                    WHERE date >= '{start_week}' AND date <= '{current_date}'
                     AND expenses.user_id=?""", (user_id, ))
 
     month_expenses = cursor.fetchone()[0]
-    return month_expenses if month_expenses else 'За текущий месяц еще нет расходов'
+    return int(month_expenses) if month_expenses else 0
 
-def get_month_base_expenses(user_id: int, current_month: str, next_month: str):
-    """Возвращает сумму базовых расходов пользователя за текущий месяц
+def get_week_base_expenses(user_id: int, start_week: str, current_date: str):
+    """Возвращает сумму базовых расходов пользователя за текущую неделю
 
     Args:
         user_id (int): telegram-id пользователя
-        current_month (str): текущий месяц
-        next_month (str): следующий месяц
+        start_week (str): начало текущей недели
+        current_date (str): текущая дата
 
     Returns:
-        str: сумма базовых расходов пользователя за месяц. Если таковой нет - сообщение 
+        int: сумма базовых расходов пользователя за неделю
     """
     cursor.execute(f"""SELECT sum(price) as sum FROM expenses 
                     JOIN categories ON expenses.category = categories.category
                     JOIN users ON expenses.user_id = users.user_id
                     WHERE expenses.user_id=? AND is_base_category=True
-                    AND date >= '{current_month}' AND date < '{next_month}'""", (user_id, ))
+                    AND date >= '{start_week}' AND date <= '{current_date}'""", (user_id, ))
 
     month_base_expenses = cursor.fetchone()[0]
-    return month_base_expenses if month_base_expenses else 'За текущий месяц еще нет базовых расходов'
+    return int(month_base_expenses) if month_base_expenses else 0
+
+def get_week_limit():
+    """Возвращает лимит расходов на неделею
+
+    Returns:
+        str: лимит расходов на неделю
+    """
+    cursor.execute("""SELECT week_limit FROM budget WHERE name='base'""")
+    return cursor.fetchone()[0]
+
+def get_month_expenses(user_id: int, current_month_date: str, next_month_date: str):
+    """Возвращает сумму расходов пользователя за текущий месяц
+
+    Args:
+        user_id (int): telegram-id пользователя
+        current_month_date (str): полная дата текущего месяца
+        next_month_date (str): полная дата следующего месяца
+
+    Returns:
+        int: сумма расходов пользователя за месяц. Если таковой нет - сообщение 
+    """
+    cursor.execute(f"""SELECT sum(price) as sum FROM expenses 
+                    JOIN users ON expenses.user_id = users.user_id
+                    WHERE date >= '{current_month_date}' AND date < '{next_month_date}'
+                    AND expenses.user_id=?""", (user_id, ))
+
+    month_expenses = cursor.fetchone()[0]
+    return int(month_expenses) if month_expenses else 0
+
+def get_month_base_expenses(user_id: int, current_month_date: str, next_month_date: str):
+    """Возвращает сумму базовых расходов пользователя за текущий месяц
+
+    Args:
+        user_id (int): telegram-id пользователя
+        current_month_date (str): полная дата текущего месяца
+        next_month_date (str): полная дата следующего месяца
+
+    Returns:
+        int: сумма базовых расходов пользователя за месяц
+    """
+    cursor.execute(f"""SELECT sum(price) as sum FROM expenses 
+                    JOIN categories ON expenses.category = categories.category
+                    JOIN users ON expenses.user_id = users.user_id
+                    WHERE expenses.user_id=? AND is_base_category=True
+                    AND date >= '{current_month_date}' AND date < '{next_month_date}'""", (user_id, ))
+
+    month_base_expenses = cursor.fetchone()[0]
+    return int(month_base_expenses) if month_base_expenses else 0
 
 def get_month_limit():
     """Возвращает лимит расходов на месяц
@@ -199,10 +247,11 @@ def create_budget_table():
     cursor.execute("""DROP TABLE IF EXISTS budget""")
     cursor.execute("""CREATE TABLE IF NOT EXISTS budget (
         name TEXT,
-        day_limit INTEGER DEFAULT 500,
-        month_limit INTEGER DEFAULT 10000
+        day_limit INTEGER,
+        week_limit INTEGER,
+        month_limit INTEGER
     )""")
-    fill_budget_table(name='base', day_limit=500, month_limit=10000)
+    fill_budget_table(name='base', day_limit=1000, week_limit=4000, month_limit=15000)
 
 def fill_categories_table():
     """Заполняет таблицу категориями расходов"""
@@ -226,7 +275,7 @@ def fill_categories_table():
     cursor.executemany("INSERT INTO categories(category, is_base_category) VALUES(?, ?)", categories)
     connection.commit()
     
-def fill_budget_table(name: str, day_limit: int, month_limit: int):
+def fill_budget_table(name: str, day_limit: int, week_limit, month_limit: int):
     """Заполняет таблицу бюджета
 
     Args:
@@ -234,13 +283,13 @@ def fill_budget_table(name: str, day_limit: int, month_limit: int):
         day_limit (int): лимит расходов на день
         month_limit (int): лимит расходов на месяц
     """
-    cursor.execute("INSERT INTO budget(name, day_limit, month_limit) VALUES(?, ?, ?)",
-        (name, day_limit, month_limit))
+    cursor.execute("INSERT INTO budget(name, day_limit, week_limit, month_limit) VALUES(?, ?, ?, ?)",
+        (name, day_limit, week_limit, month_limit))
     connection.commit()
 
-def change_budget(day_limit=1000, month_limit=15000):
+def change_budget(day_limit=1000, week_limit=4000, month_limit=15000):
     """Изменяет значения лимитированного бюджета"""
-    cursor.execute("""UPDATE budget SET day_limit=?, month_limit=?""", (day_limit, month_limit))
+    cursor.execute("""UPDATE budget SET day_limit=?, week_limit=?, month_limit=?""", (day_limit, week_limit, month_limit))
     connection.commit()
 
 init_db()
