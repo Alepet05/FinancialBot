@@ -1,31 +1,8 @@
-from datetime import datetime
-import sqlite3 as sq
+import db_init
 
 
-# подлючение к БД
-connection = sq.connect('db.db')
-cursor = connection.cursor()
-
-def add_new_user(user_id: int):
-    """Добавляет нового пользователя в БД
-
-    Args:
-        user_id (int): telegram-id пользователя
-    """
-    cursor.execute("""INSERT INTO users (user_id) VALUES (?)""", (user_id, ))
-    connection.commit()
-
-def check_user_exists(user_id):
-    """Проверяет, существует ли пользователь с переданным id в БД
-
-    Args:
-        user_id (int): telegram-id пользователя
-
-    Returns:
-        [tuple, None]: Объект cursor, если пользователь был найден, иначе - None
-    """
-    user = cursor.execute('SELECT * FROM users WHERE user_id=?', (user_id, ))
-    return user.fetchone()
+cursor = db_init.get_cursor()
+connection = db_init.get_connection()
 
 def add_expense(user_id: int, price: int, category: str):
     """Добавляет расход в БД
@@ -53,17 +30,7 @@ def get_last_expenses(user_id: int, expenses_count: int):
                     JOIN users ON expenses.user_id = users.user_id
                     WHERE expenses.user_id=? LIMIT ?""", (user_id, expenses_count))
     last_expenses = cursor.fetchall()
-    return last_expenses if last_expenses else 'Отсутствуют какие-либо расходы'
-
-def get_categories():
-    """Возвращает список категорий из бд
-
-    Returns:
-        list: список категорий
-    """
-    cursor.execute("""SELECT category FROM categories""")
-    categories_names = cursor.fetchall()
-    return [category[0] for category in categories_names] # преобразуем список кортежей в список названий категорий
+    return last_expenses
 
 def get_today_expenses(user_id: int, date: str):
     """Возвращает сумму расходов пользователя за сегодня
@@ -97,15 +64,6 @@ def get_today_base_expanses(user_id: int, date: str):
                     WHERE expenses.user_id=? AND date=? AND is_base_category=True""", (user_id, date))
     today_base_expanses = cursor.fetchone()[0]
     return int(today_base_expanses) if today_base_expanses else 0
-
-def get_day_limit():
-    """Возвращает лимит расходов на день
-
-    Returns:
-        str: лимит расходов на день
-    """
-    cursor.execute("""SELECT day_limit FROM budget WHERE name='base'""")
-    return cursor.fetchone()[0]
 
 def get_week_expenses(user_id: int, start_week: str, current_date: str):
     """Возвращает сумму расходов пользователя за текущую неделю
@@ -146,15 +104,6 @@ def get_week_base_expenses(user_id: int, start_week: str, current_date: str):
     month_base_expenses = cursor.fetchone()[0]
     return int(month_base_expenses) if month_base_expenses else 0
 
-def get_week_limit():
-    """Возвращает лимит расходов на неделею
-
-    Returns:
-        str: лимит расходов на неделю
-    """
-    cursor.execute("""SELECT week_limit FROM budget WHERE name='base'""")
-    return cursor.fetchone()[0]
-
 def get_month_expenses(user_id: int, current_month_date: str, next_month_date: str):
     """Возвращает сумму расходов пользователя за текущий месяц
 
@@ -193,103 +142,3 @@ def get_month_base_expenses(user_id: int, current_month_date: str, next_month_da
 
     month_base_expenses = cursor.fetchone()[0]
     return int(month_base_expenses) if month_base_expenses else 0
-
-def get_month_limit():
-    """Возвращает лимит расходов на месяц
-
-    Returns:
-        str: лимит расходов на месяц
-    """
-    cursor.execute("""SELECT month_limit FROM budget WHERE name='base'""")
-    return cursor.fetchone()[0]
-
-def init_db():
-    """Инициализирует БД"""
-    create_users_table()
-    create_categories_table()
-    create_expenses_table()
-    create_budget_table() 
-
-def create_users_table():
-    """Создает таблицу пользователей, если она отсутствует"""
-    cursor.execute("""DROP TABLE IF EXISTS users""")
-    cursor.execute("""CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER UNIQUE,
-        join_date DATETIME DEFAULT (DATETIME('now', 'localtime'))
-    )""")
-
-def create_expenses_table():
-    """Создает таблицу расходов, если она отсутствует"""
-    cursor.execute("""DROP TABLE IF EXISTS expenses""")
-    cursor.execute("""CREATE TABLE IF NOT EXISTS expenses (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        price INTEGER,
-        category TEXT,
-        date DATE DEFAULT (DATE('now', 'localtime')),
-        FOREIGN KEY (category) REFERENCES categories(category),
-        FOREIGN KEY (user_id) REFERENCES users(user_id)
-    )""")
-
-def create_categories_table():
-    """Создает таблицу категорий расходов, если она отсутствует"""
-    cursor.execute("""DROP TABLE IF EXISTS categories""")
-    cursor.execute("""CREATE TABLE IF NOT EXISTS categories (
-        category TEXT UNIQUE,
-        is_base_category BOOLEAN 
-    )""")
-    
-    fill_categories_table()
-
-def create_budget_table():
-    """Создает таблицу бюджета, если она отсутствует"""
-    cursor.execute("""DROP TABLE IF EXISTS budget""")
-    cursor.execute("""CREATE TABLE IF NOT EXISTS budget (
-        name TEXT,
-        day_limit INTEGER,
-        week_limit INTEGER,
-        month_limit INTEGER
-    )""")
-    fill_budget_table(name='base', day_limit=1000, week_limit=4000, month_limit=15000)
-
-def fill_categories_table():
-    """Заполняет таблицу категориями расходов"""
-    categories = [
-        ('такси', True),
-        ('продукты', True),
-        ('обед', True),
-        ('кафе', True),
-        ('транспорт', False),
-        ('интернет и связь', False),
-        ('фастфуд', True),
-        ('коммунальные услуги', False),
-        ('товары', True),
-        ('подписки', False),
-        ('дом', True),
-        ('развлечения', True),
-        ('медицина', False),
-        ('личное', True),
-        ('прочее', True),
-    ]
-    cursor.executemany("INSERT INTO categories(category, is_base_category) VALUES(?, ?)", categories)
-    connection.commit()
-    
-def fill_budget_table(name: str, day_limit: int, week_limit, month_limit: int):
-    """Заполняет таблицу бюджета
-
-    Args:
-        name (str): название бюджета (базовый или нет)
-        day_limit (int): лимит расходов на день
-        month_limit (int): лимит расходов на месяц
-    """
-    cursor.execute("INSERT INTO budget(name, day_limit, week_limit, month_limit) VALUES(?, ?, ?, ?)",
-        (name, day_limit, week_limit, month_limit))
-    connection.commit()
-
-def change_budget(day_limit=1000, week_limit=4000, month_limit=15000):
-    """Изменяет значения лимитированного бюджета"""
-    cursor.execute("""UPDATE budget SET day_limit=?, week_limit=?, month_limit=?""", (day_limit, week_limit, month_limit))
-    connection.commit()
-
-init_db()

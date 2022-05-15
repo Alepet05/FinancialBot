@@ -1,6 +1,6 @@
 from loader import dp, bot
 from aiogram import types
-import db
+import users, categories, expenses, budget
 import re
 import datetime
 
@@ -9,12 +9,16 @@ import datetime
 async def welcome(message: types.Message):
     """Приветствует пользователя и заносит его в БД"""
     user_id = message.from_user.id
-    if not db.check_user_exists(user_id):
-        db.add_new_user(user_id)
+
+    # регистрация пользователя
+    if not users.check_user_exists(user_id):
+        users.add_new_user(user_id)
+
     await message.answer(
         "Бот для учёта финансов\n\n"
         "Добавить расход: /add 100 продукты\n"
         "Расходы за сегодня: /today\n"
+        "Расходы за текущую неделю: /week\n"
         "Расходы за текущий месяц: /month\n"
         "N последних внесенных расходов: /expenses 10\n"
         "Категории трат: /categories")
@@ -30,12 +34,12 @@ async def add_expense(message: types.Message):
     if re.search(pattern, msg_text):
         price, category_input = re.findall(pattern, msg_text)[0] # если команда корректна, то findall вернет список типа [('расход', 'категория')]
     else:
-        await message.answer("Неверно введена команда")
+        await message.answer("Неверно введена команда\nШаблон: /add трата категория")
         return
 
-    category = category_input if category_input in db.get_categories() else 'прочее' # определяем введенную пользователем категорию расхода
+    category = category_input if category_input in categories.get_categories() else 'прочее' # определяем введенную пользователем категорию расхода
     
-    db.add_expense(user_id, int(price), category)
+    expenses.add_expense(user_id, int(price), category)
 
     await message.answer(f"Внесен расход {price} руб. на {category}")
 
@@ -43,17 +47,23 @@ async def add_expense(message: types.Message):
 async def get_last_expenses(message: types.Message):
     """Выводит последние N расходов (N вводится пользователем)"""
     user_id = message.from_user.id
-    command = message.text.split()
-    expenses_count = int(command[-1]) if len(command) == 2 else 5 # формат команды /expenses {кол-во расходов}. По умолчанию выводится 5 последних расходов
+    
+    # проверяем корректность введенной пользователем команды
+    pattern = '/expenses (\d+)'
+    if re.search(pattern, message.text):
+        expenses_count = int(re.findall(pattern, message.text)[0])
+    else:
+        await message.answer("Неверно введена команда\nШаблон: /expenses кол-во расходов")
+        return 
 
     answer_text = ''
-    last_expenses = db.get_last_expenses(user_id, expenses_count)
+    last_expenses = expenses.get_last_expenses(user_id, expenses_count)
 
-    if type(last_expenses) is list:
+    if last_expenses:
         for expense in last_expenses:
-            answer_text += f"* {expense[1]} руб. на {expense[0]} {expense[2]}\n"
+            answer_text += f"* {expense[1]} руб. на {expense[0]} - {expense[2]}\n"
     else:
-        answer_text = last_expenses
+        answer_text = 'Отсутствуют какие-либо расходы'
         
     await message.answer(answer_text)
 
@@ -63,9 +73,9 @@ async def get_today_statistic(message: types.Message):
     user_id = message.from_user.id
     date = datetime.datetime.now().strftime('%Y-%m-%d')
 
-    today_expenses = db.get_today_expenses(user_id, date)
-    today_base_expenses = db.get_today_base_expanses(user_id, date)
-    day_limit = db.get_day_limit()
+    today_expenses = expenses.get_today_expenses(user_id, date)
+    today_base_expenses = expenses.get_today_base_expanses(user_id, date)
+    day_limit = budget.get_day_limit()
 
     await message.answer(
         'Расходы сегодня:\n\n'
@@ -95,7 +105,7 @@ async def get_week_statistic(message: types.Message):
     
     current_date = datetime.datetime.now().strftime('%Y-%m-%d')
     year, month, day = current_date.split('-')
-    # если мы в первой неделе месяца
+    # если текущая дата это первая неделя месяца
     if int(day) <= 7:
         # если текущий месяц не январь
         if int(month) != 1:
@@ -106,8 +116,7 @@ async def get_week_statistic(message: types.Message):
             start_week = f"{year}-{zeroes_count}{prev_month}-{first_day_week}"
         # иначе текущий месяц - январь
         else:
-            prev_month = 12 # очевидно, что в таком случае предыдущий месяц - декабрь прошлого года
-            month_days_amount = months[prev_month]
+            month_days_amount = months['12'] # очевидно, что в таком случае предыдущий месяц - декабрь прошлого года
             zeroes_count = '0' if prev_month < 10 else ''
             first_day_week = int(month_days_amount)-(7-int(day))
             start_week = f"{int(year)-1}-{zeroes_count}{prev_month}-{first_day_week}"
@@ -116,9 +125,9 @@ async def get_week_statistic(message: types.Message):
         zeroes_count = '0' if first_day_week < 10 else ''
         start_week = f"{year}-{month}-{zeroes_count}{first_day_week}"
 
-    week_expenses = db.get_week_expenses(user_id, start_week, current_date)
-    week_base_expenses = db.get_week_base_expenses(user_id, start_week, current_date)
-    week_limit = db.get_week_limit()
+    week_expenses = expenses.get_week_expenses(user_id, start_week, current_date)
+    week_base_expenses = expenses.get_week_base_expenses(user_id, start_week, current_date)
+    week_limit = budget.get_week_limit()
 
     await message.answer(
         f'Расходы за текущую неделю (с {start_week} по {current_date}):\n\n'
@@ -137,13 +146,13 @@ async def get_month_statistic(message: types.Message):
     next_month = int(month)+1
     if next_month <= 12: # если укладываемся в год
         zeroes_count = '0' if next_month < 10 else '' # добавляем нуль, если нужно
-        next_month_date = f'{year}-{zeroes_count}{month}-01'
+        next_month_date = f'{year}-{zeroes_count}{next_month}-01'
     else: # иначе обновляем год
         next_month_date = f'{int(year)+1}-01-01'
 
-    month_expenses = db.get_month_expenses(user_id, current_month_date, next_month_date)
-    month_base_expenses = db.get_month_base_expenses(user_id, current_month_date, next_month_date)
-    month_limit = db.get_month_limit()
+    month_expenses = expenses.get_month_expenses(user_id, current_month_date, next_month_date)
+    month_base_expenses = expenses.get_month_base_expenses(user_id, current_month_date, next_month_date)
+    month_limit = budget.get_month_limit()
 
     await message.answer(
         'Расходы за текущий месяц:\n\n'
@@ -153,10 +162,10 @@ async def get_month_statistic(message: types.Message):
 
 @dp.message_handler(commands=['categories'])
 async def get_categories(message: types.Message):
-    categories = db.get_categories()
+    cats = categories.get_categories()
     answer_text = ''
 
-    for category in categories:
+    for category in cats:
         answer_text += f"* {category}\n"
 
     await message.answer(answer_text)
