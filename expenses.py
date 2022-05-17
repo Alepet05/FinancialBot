@@ -104,32 +104,32 @@ def get_week_base_expenses(user_id: int, start_week: str, current_date: str):
     month_base_expenses = cursor.fetchone()[0]
     return int(month_base_expenses) if month_base_expenses else 0
 
-def get_month_expenses(user_id: int, current_month_date: str, next_month_date: str):
+def get_month_expenses(user_id: int, first_day_current_month: str, first_day_next_month: str):
     """Возвращает сумму расходов пользователя за текущий месяц
 
     Args:
         user_id (int): telegram-id пользователя
-        current_month_date (str): полная дата текущего месяца
-        next_month_date (str): полная дата следующего месяца
+        first_day_current_month (str): дата первого дня текущего месяца
+        first_day_next_month (str): дата первого дня следующего месяца
 
     Returns:
         int: сумма расходов пользователя за месяц. Если таковой нет - сообщение 
     """
     cursor.execute(f"""SELECT sum(price) as sum FROM expenses 
                     JOIN users ON expenses.user_id = users.user_id
-                    WHERE date >= '{current_month_date}' AND date < '{next_month_date}'
+                    WHERE date >= '{first_day_current_month}' AND date < '{first_day_next_month}'
                     AND expenses.user_id=?""", (user_id, ))
 
     month_expenses = cursor.fetchone()[0]
     return int(month_expenses) if month_expenses else 0
 
-def get_month_base_expenses(user_id: int, current_month_date: str, next_month_date: str):
+def get_month_base_expenses(user_id: int, first_day_current_month: str, first_day_next_month: str):
     """Возвращает сумму базовых расходов пользователя за текущий месяц
 
     Args:
         user_id (int): telegram-id пользователя
-        current_month_date (str): полная дата текущего месяца
-        next_month_date (str): полная дата следующего месяца
+        first_day_current_month (str): дата первого дня текущего месяца
+        first_day_next_month (str): дата первого дня следующего месяца
 
     Returns:
         int: сумма базовых расходов пользователя за месяц
@@ -138,7 +138,7 @@ def get_month_base_expenses(user_id: int, current_month_date: str, next_month_da
                     JOIN categories ON expenses.category = categories.category
                     JOIN users ON expenses.user_id = users.user_id
                     WHERE expenses.user_id=? AND is_base_category=True
-                    AND date >= '{current_month_date}' AND date < '{next_month_date}'""", (user_id, ))
+                    AND date >= '{first_day_current_month}' AND date < '{first_day_next_month}'""", (user_id, ))
 
     month_base_expenses = cursor.fetchone()[0]
     return int(month_base_expenses) if month_base_expenses else 0

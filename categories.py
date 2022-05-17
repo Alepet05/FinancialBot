@@ -14,12 +14,12 @@ def get_all_categories():
     categories_names = cursor.fetchall()
     return [category[0] for category in categories_names] # преобразуем список кортежей в список названий категорий
 
-def get_user_categories_statistics(current_month_date: str, next_month_date: str):
+def get_user_categories_statistics(first_day_current_month: str, first_day_next_month: str):
     """Возвращает статистику расходов пользователя за месяц
 
     Args:
-        current_month_date (str): полная дата текущего месяца
-        next_month_date (str): полная дата следующего месяца
+        first_day_current_month (str): дата первого дня текущего месяца
+        first_day_next_month (str): дата первого дня следующего месяца
 
     Returns:
         dict: словарь категорий и их расходов
@@ -31,7 +31,7 @@ def get_user_categories_statistics(current_month_date: str, next_month_date: str
     for category in all_categories:
         cursor.execute(F"""SELECT sum(price) AS sum FROM expenses 
                         JOIN users ON expenses.user_id = users.user_id
-                        WHERE date >= '{current_month_date}' AND date < '{next_month_date}'
+                        WHERE date >= '{first_day_current_month}' AND date < '{first_day_next_month}'
                         AND category=?""", (category, ))
         user_cat_expenses = cursor.fetchone()[0]
         if user_cat_expenses:

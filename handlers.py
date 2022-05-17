@@ -15,15 +15,15 @@ def get_months(current_date: str):
         tuple: кортеж дат начала текущего и следующего месяцев
     """
     year, month, _ = current_date.split('-')
-    current_month_date = f'{year}-{month}-01' # начало текущего месяца
+    first_day_current_month = f'{year}-{month}-01' # начало текущего месяца
     next_month = int(month)+1
     if next_month <= 12: # если укладываемся в год
         zeroes_count = '0' if next_month < 10 else '' # добавляем нуль, если нужно
-        next_month_date = f'{year}-{zeroes_count}{next_month}-01'
+        first_day_next_month = f'{year}-{zeroes_count}{next_month}-01'
     else: # иначе обновляем год
-        next_month_date = f'{int(year)+1}-01-01'
+        first_day_next_month = f'{int(year)+1}-01-01'
 
-    return current_month_date, next_month_date
+    return first_day_current_month, first_day_next_month
 
 def get_start_week(current_date):
     """Возвращает дату начала текущей недели
@@ -80,6 +80,9 @@ async def welcome(message: types.Message):
     if not users.check_user_exists(user_id):
         users.add_new_user(user_id)
 
+    # инициализация бюджета пользователя
+    budget.add_user_budget(user_id)
+
     await message.answer(
         "Бот для учёта финансов\n\n"
         "Добавить расход: /add 100 продукты\n"
@@ -88,7 +91,8 @@ async def welcome(message: types.Message):
         "Расходы за текущий месяц: /month\n"
         "N последних внесенных расходов: /expenses 10\n"
         "Категории расходов: /categories\n"
-        "Статистика расходов по категориям за месяц: /statistics")
+        "Статистика расходов по категориям за месяц: /statistics\n"
+        "Изменить бюджет: /change нужные значения через пробел\n(по умолчанию 1000 руб./день, 4000 руб./нед., 15000 руб./мес.)")
 
 @dp.message_handler(commands=['add'])
 async def add_expense(message: types.Message):
@@ -173,10 +177,10 @@ async def get_month_statistics(message: types.Message):
     """Выводит информацию о тратах пользователя за текущий месяц"""
     user_id = message.from_user.id
     current_date = datetime.datetime.now().strftime('%Y-%m-%d')
-    current_month_date, next_month_date = get_months(current_date)
+    first_day_current_month, first_day_next_month = get_months(current_date)
 
-    month_expenses = expenses.get_month_expenses(user_id, current_month_date, next_month_date)
-    month_base_expenses = expenses.get_month_base_expenses(user_id, current_month_date, next_month_date)
+    month_expenses = expenses.get_month_expenses(user_id, first_day_current_month, first_day_next_month)
+    month_base_expenses = expenses.get_month_base_expenses(user_id, first_day_current_month, first_day_next_month)
     month_limit = budget.get_month_limit()
 
     await message.answer(
@@ -199,11 +203,31 @@ async def get_categories(message: types.Message):
 @dp.message_handler(commands=['statistics'])
 async def get_user_categories_statistics(message: types.Message):
     """Выводит пользовательскую статистику расходов по категориям за месяц"""
-    current_month_date, next_month_date = get_months()
-    user_categories_statistics = categories.get_user_categories_statistics(current_month_date, next_month_date)
+    first_day_current_month, first_day_next_month = get_months()
+    user_categories_statistics = categories.get_user_categories_statistics(first_day_current_month, first_day_next_month)
     answer_text = 'Сатистика расходов по категориям за месяц: \n\n'
 
     for category, expenses in user_categories_statistics.items():
         answer_text += f"{category} - {expenses} руб.\n"
 
     await message.answer(answer_text)
+
+@dp.message_handler(commands=['change'])
+async def change_user_budget(message: types.Message):
+    """Изменяет значения лимитированного бюджета пользователя"""
+    user_id = message.from_user.id
+
+    budget_values = message.text.split()[1:]
+    if len(budget_values) == 1:
+        day = budget_values[0]
+        budget.change_user_budget(user_id, day_limit=int(day))
+        await message.answer("Лимит на день изменен")
+    elif len(budget_values) == 2:
+        day, week = budget_values
+        budget.change_user_budget(user_id, day_limit=int(day), week_limit=int(week))
+        await message.answer("Лимит на день и неделю изменен")
+    elif len(budget_values) == 3:
+        day, week, month = budget_values
+        budget.change_user_budget(user_id, day_limit=int(day), week_limit=int(week), month_limit=int(month))
+        await message.answer("Лимит на день, неделю и месяц изменен")
+    

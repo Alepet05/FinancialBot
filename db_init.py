@@ -58,12 +58,13 @@ def create_categories_table():
 def create_budget_table():
     """Создает таблицу бюджета, если она отсутствует"""
     cursor.execute("""CREATE TABLE budget (
+        user_id INTEGER,
         name TEXT,
         day_limit INTEGER,
         week_limit INTEGER,
-        month_limit INTEGER
+        month_limit INTEGER, 
+        FOREIGN KEY (user_id) REFERENCES users(user_id)
     )""")
-    fill_budget_table(name='base', day_limit=1000, week_limit=4000, month_limit=15000)
 
 def fill_categories_table():
     """Заполняет таблицу категориями расходов"""
@@ -85,23 +86,6 @@ def fill_categories_table():
         ('прочее', True),
     ]
     cursor.executemany("INSERT INTO categories(category, is_base_category) VALUES(?, ?)", categories)
-    connection.commit()
-    
-def fill_budget_table(name: str, day_limit: int, week_limit, month_limit: int):
-    """Заполняет таблицу бюджета
-
-    Args:
-        name (str): название бюджета (базовый или нет)
-        day_limit (int): лимит расходов на день
-        month_limit (int): лимит расходов на месяц
-    """
-    cursor.execute("INSERT INTO budget(name, day_limit, week_limit, month_limit) VALUES(?, ?, ?, ?)",
-        (name, day_limit, week_limit, month_limit))
-    connection.commit()
-
-def change_budget(day_limit=1000, week_limit=4000, month_limit=15000):
-    """Изменяет значения лимитированного бюджета"""
-    cursor.execute("""UPDATE budget SET day_limit=?, week_limit=?, month_limit=?""", (day_limit, week_limit, month_limit))
     connection.commit()
 
 init_db()
