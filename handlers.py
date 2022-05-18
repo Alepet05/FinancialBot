@@ -203,7 +203,8 @@ async def get_categories(message: types.Message):
 @dp.message_handler(commands=['statistics'])
 async def get_user_categories_statistics(message: types.Message):
     """Выводит пользовательскую статистику расходов по категориям за месяц"""
-    first_day_current_month, first_day_next_month = get_months()
+    current_date = datetime.datetime.now().strftime('%Y-%m-%d')
+    first_day_current_month, first_day_next_month = get_months(current_date)
     user_categories_statistics = categories.get_user_categories_statistics(first_day_current_month, first_day_next_month)
     answer_text = 'Сатистика расходов по категориям за месяц: \n\n'
 
